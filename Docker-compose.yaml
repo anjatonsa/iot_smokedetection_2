@@ -1,0 +1,75 @@
+version: "3.7"
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto
+    hostname: mosquitto
+    container_name: mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+    networks:
+      - iot_projekat2
+
+  sensor:
+    image: sensor_ms
+    container_name: sensor_ms 
+    ports:
+      - "3000:3000"
+    networks:
+      - iot_projekat2 
+    depends_on:
+      - mosquitto
+      - mongodb
+      - python_script
+    
+  analytics:
+    build: 
+      context: ./analyticsmicroservice
+      dockerfile: Dockerfile
+    container_name: analytics_ms
+    depends_on:
+      - mongodb
+      - python_script
+    networks:
+      - iot_projekat2
+      
+  event_info:
+    build: 
+      context: ./eventinfoMicroservice
+      dockerfile: Dockerfile
+    container_name: eventinfo_ms
+    ports:
+      - "5001:5001"
+    depends_on:
+      - analytics
+      - mosquitto
+    networks:
+      - iot_projekat2
+  
+  mongodb:
+    image: mongo
+    container_name: mongodb
+    ports: 
+      - "27017:27017"
+    networks:
+      - iot_projekat2
+
+  python_script:
+    build: 
+      context: ./insertingData
+      dockerfile: Dockerfile
+    container_name: python_script
+    depends_on:
+      - mongodb
+    networks:
+      - iot_projekat2
+    volumes:
+      - ./insertingData:/app
+
+networks:
+  iot_projekat2:
+    driver: bridge
